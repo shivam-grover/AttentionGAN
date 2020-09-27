@@ -20,6 +20,7 @@ from PIL import Image
 import csv
 import pandas, random
 
+
 images_path = "/content/AttentionGAN/datasets/DeepFashion/real/img/"
 # images_path = "../IUV/img/"
 test_pairs_path = "/content/AttentionGAN/datasets/DeepFashion/fasion-resize-pairs-test.csv"
@@ -31,6 +32,25 @@ csv_save_path = "/content/AttentionGAN/datasets/DeepFashion/segments/colors.csv"
 
 colnames = ['Name', 'L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7', 'L8', 'L9', 'L10', 'L11', 'L12']
 
+def tensor2im(input_image, imtype=np.uint8):
+    """"Converts a Tensor array into a numpy image array.
+
+    Parameters:
+        input_image (tensor) --  the input image tensor array
+        imtype (type)        --  the desired type of the converted numpy array
+    """
+    if not isinstance(input_image, np.ndarray):
+        if isinstance(input_image, torch.Tensor):  # get the data from a variable
+            image_tensor = input_image.data
+        else:
+            return input_image
+        image_numpy = image_tensor[0].cpu().float().numpy()  # convert it into a numpy array
+        if image_numpy.shape[0] == 1:  # grayscale to RGB
+            image_numpy = np.tile(image_numpy, (3, 1, 1))
+        image_numpy = (np.transpose(image_numpy, (1, 2, 0)) + 1) / 2.0 * 255.0  # post-processing: tranpose and scaling
+    else:  # if it is a numpy array, do nothing
+        image_numpy = input_image
+    return image_numpy.astype(imtype)
 
 def find_dataset_using_name(dataset_name):
     """Import the module "data/[dataset_name]_dataset.py".
@@ -215,6 +235,8 @@ def create_dataset_custom(csv_data, avail_ims, L, batch_size=4):
 			
 			index += 1
 	a = np.moveaxis(x, 3, 1);b = np.moveaxis(y, 3, 1);a = torch.from_numpy(a.astype("float32"));b = torch.from_numpy(b.astype("float32"));
+	a = torch.from_numpy(x.astype("float32"));b = torch.from_numpy(y.astype("float32"));a = a.permute(0, 3, 1, 2); b = b.permute(0,3,1,2);
+	# c = a.permute(0,2,3,1)
 	'''dict_keys(['A', 'B', 'A_paths', 'B_paths'])'''
 	#for colab
 ##	a = torch.from_numpy(x)

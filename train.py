@@ -34,6 +34,9 @@ if __name__ == '__main__':
 
     '''custom utilities'''
 
+    import wandb
+    wandb.init(project="pose-appearance-cyclic-loss")
+
     images_path = "/content/AttentionGAN/datasets/DeepFashion/real/img/"
     # images_path = "../IUV/img/"
     test_pairs_path = "/content/AttentionGAN/datasets/DeepFashion/fasion-resize-pairs-test.csv"
@@ -60,8 +63,6 @@ if __name__ == '__main__':
         csv_data = []
         for row in spamreader:
             csv_data.append([row[0].split(",")[0], row[0].split(",")[1]])
-            if(index==1500):
-                break
             index+=1
 
     random.shuffle(csv_data)
@@ -70,6 +71,7 @@ if __name__ == '__main__':
     
 
     opt = TrainOptions().parse()   # get training options
+    opt.lambda_identity = 0
 ##    dataset = create_dataset(opt, csv_data ,avail_ims, L)  # create a dataset given opt.dataset_mode and other options
 ##    dataset_size = len(dataset)    # get the number of images in the dataset.
 ##    print('The number of training images = %d' % dataset_size)
@@ -85,8 +87,11 @@ if __name__ == '__main__':
         epoch_iter = 0                  # the number of training iterations in current epoch, reset to 0 every epoch
 
 ##        for i, data in enumerate(dataset):  # inner loop within one epoch
-        for i in range(1000):
-            data = create_dataset(opt, csv_data ,avail_ims, L)  # create a dataset given opt.dataset_mode and other options
+        for i in range(500):
+            try:
+                data = create_dataset(opt, csv_data ,avail_ims, L)  # create a dataset given opt.dataset_mode and other options
+            except:
+                continue
             iter_start_time = time.time()  # timer for computation per iteration
             if total_iters % opt.print_freq == 0:
                 t_data = iter_start_time - iter_data_time
@@ -97,12 +102,14 @@ if __name__ == '__main__':
             model.optimize_parameters()   # calculate loss functions, get gradients, update network weights
 
             if total_iters % opt.display_freq == 0:   # display images on visdom and save images to a HTML file
-                save_result = total_iters % opt.update_html_freq == 0
+                save_result = total_iters % 100 == 0
                 model.compute_visuals()
                 visualizer.display_current_results(model.get_current_visuals(), epoch, save_result)
 
+            losses = model.get_current_losses()
+            wandb.log(losses)
+
             if total_iters % opt.print_freq == 0:    # print training losses and save logging information to the disk
-                losses = model.get_current_losses()
                 t_comp = (time.time() - iter_start_time) / opt.batch_size
                 visualizer.print_current_losses(epoch, epoch_iter, losses, t_comp, t_data)
                 if opt.display_id > 0:
