@@ -437,7 +437,7 @@ class ResnetGenerator_our(nn.Module):
 
     # forward method
     def forward(self, input):
-        x = F.pad(input, (3, 3, 3, 3), 'reflect')
+        # x = F.pad(input, (3, 3, 3, 3), 'reflect')
         x = F.relu(self.conv1_norm(self.conv1(x)))
         x = F.relu(self.conv2_norm(self.conv2(x)))
         x = F.relu(self.conv3_norm(self.conv3(x)))
