@@ -217,24 +217,24 @@ def create_dataset_custom(csv_data, avail_ims, L, batch_size=4):
 			# except:
 			# 	x = 
 
-			im = r_img1
+			im = (r_img1/255.0 - 0.5) * 2
 
 			# im = np.dstack((im, l_img1, c_img1, l_img2, c_img2))
 
 			#replacing original colors with the augmented ones
-			im = np.dstack((im, l_img1, c_img1, l_img2, c_aug2))
+			im = np.dstack((im, (l_img1-0.5)*2, (c_img1/255.0 - 0.5) * 2, (l_img2-0.5)*2, (c_aug2/255.0 - 0.5) * 2))
 
 			# print(x.shape ,im.shape, r_img1.shape, l_img1.shape, c_img1.shape, l_img2.shape,c_img2.shape)
 			
 			x[index,:,:,:] = im
-
-			im = r_img2
-			im = np.dstack((im, l_img2, c_aug2, l_img1, c_img1))
+			im = (r_img2/255.0 - 0.5) * 2
+			
+			im = np.dstack((im, (l_img2-0.5)*2, (c_aug2/255.0 - 0.5) * 2 , (l_img1-0.5)*2, (c_img1/255.0 - 0.5) * 2))
 			y[index,:,:,:] = im
 
 			
 			index += 1
-	a = np.moveaxis(x, 3, 1);b = np.moveaxis(y, 3, 1);a = torch.from_numpy(a.astype("float32"));b = torch.from_numpy(b.astype("float32"));
+	# a = np.moveaxis(x, 3, 1);b = np.moveaxis(y, 3, 1);a = torch.from_numpy(a.astype("float32"));b = torch.from_numpy(b.astype("float32"));
 	a = torch.from_numpy(x.astype("float32"));b = torch.from_numpy(y.astype("float32"));a = a.permute(0, 3, 1, 2); b = b.permute(0,3,1,2);
 	# c = a.permute(0,2,3,1)
 	'''dict_keys(['A', 'B', 'A_paths', 'B_paths'])'''

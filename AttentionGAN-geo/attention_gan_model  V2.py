@@ -97,9 +97,6 @@ class AttentionGANModel(BaseModel):
         self.real_B = self.real_B_full[:, :3, :,:]
 
         # print("shapes after slicing", self.real_B_full.shape, self.LC_A.shape, self.real_A.shape)
-
-        self.idt_A_ip = torch.cat((self.real_A,self.LC_A, self.LC_A))
-        self.idt_B_ip = torch.cat((self.real_B,self.LC_B, self.LC_B))
         
         self.image_paths = input['A_paths' if AtoB else 'B_paths']
 
@@ -120,10 +117,6 @@ class AttentionGANModel(BaseModel):
         _, _, _, _, _, _, _, _, _, _, \
         _, _, _, _, _, _, _, _, _, _ = self.netG_B(self.fake_B_full)   # G_B(G_A(A))
         # print("Net G_B(fake_B) done")
-
-        self.rec_B, _, _, _, _, _, _, _, _, _, _, \
-        _, _, _, _, _, _, _, _, _, _, \
-        _, _, _, _, _, _, _, _, _, _ = self.netG_B(self.fake_B_full)   # G_B(G_A(A))
 
 
         # self.fake_A, \
@@ -165,9 +158,7 @@ class AttentionGANModel(BaseModel):
     def backward_D_B(self):
         """Calculate GAN loss for discriminator D_B"""
         rec_A = self.fake_A_pool.query(self.rec_A)
-        self.loss_D_B = self.backward_D_basic(self.netD_A, self.real_A, rec_A)
-        rec_B = self.fake_A_pool.query(self.rec_B)
-        self.loss_D_B1 = self.backward_D_basic(self.netD_A, self.real_B, rec_B)
+        self.loss_D_B = self.backward_D_basic(self.netD_B, self.real_A, rec_A)
 
     def backward_G(self):
         """Calculate the loss for generators G_A and G_B"""
@@ -175,37 +166,34 @@ class AttentionGANModel(BaseModel):
         lambda_A = self.opt.lambda_A
         lambda_B = self.opt.lambda_B
         # Identity loss
-        # if lambda_idt > 0:
-        # G_A should be identity if real_B is fed: ||G_A(B) - B||
-        self.idt_A, _, _, _, _, _, _, _, _, _, _, \
-        _, _, _, _, _, _, _, _, _, _, \
-        _, _, _, _, _, _, _, _, _, _ = self.netG_A(self.idt_B_ip)
-        self.loss_idt_A = self.criterionIdt(self.idt_A, self.real_B) * lambda_B * lambda_idt
-        # G_B should be identity if real_A is fed: ||G_B(A) - A||
-        self.idt_B, _, _, _, _, _, _, _, _, _, _, \
-        _, _, _, _, _, _, _, _, _, _, \
-        _, _, _, _, _, _, _, _, _, _ = self.netG_B(self.idt_A_ip)
-        self.loss_idt_B = self.criterionIdt(self.idt_B, self.real_A) * lambda_A * lambda_idt
-        # else:
-        #     self.loss_idt_A = 0
-        #     self.loss_idt_B = 0
+        if lambda_idt > 0:
+            # G_A should be identity if real_B is fed: ||G_A(B) - B||
+            self.idt_A, _, _, _, _, _, _, _, _, _, _, \
+            _, _, _, _, _, _, _, _, _, _, \
+            _, _, _, _, _, _, _, _, _, _ = self.netG_A(self.real_B)
+            self.loss_idt_A = self.criterionIdt(self.idt_A, self.real_B) * lambda_B * lambda_idt
+            # G_B should be identity if real_A is fed: ||G_B(A) - A||
+            self.idt_B, _, _, _, _, _, _, _, _, _, _, \
+            _, _, _, _, _, _, _, _, _, _, \
+            _, _, _, _, _, _, _, _, _, _ = self.netG_B(self.real_A)
+            self.loss_idt_B = self.criterionIdt(self.idt_B, self.real_A) * lambda_A * lambda_idt
+        else:
+            self.loss_idt_A = 0
+            self.loss_idt_B = 0
 
         # GAN loss D_A(G_A(A))
         self.loss_G_A = self.criterionGAN(self.netD_A(self.fake_B), True)
         # GAN loss D_B(G_B(B))
         # self.loss_G_B = self.criterionGAN(self.netD_B(self.fake_A), True)
-        self.loss_G_B = self.criterionGAN(self.netD_A(self.rec_A), True)
+        self.loss_G_B = self.criterionGAN(self.netD_B(self.rec_A), True)
 
         # Forward cycle loss || G_B(G_A(A)) - A||
         self.loss_cycle_A = self.criterionCycle(self.rec_A, self.real_A) * lambda_A
-
-        self.loss_cycle_B = self.criterionCycle(self.rec_B, self.real_B) * lambda_B
-
         # Backward cycle loss || G_A(G_B(B)) - B||
         # self.loss_cycle_B = self.criterionCycle(self.rec_B, self.real_B) * lambda_B
         # combined loss and calculate gradients
         # self.loss_G = self.loss_G_A + self.loss_G_B + self.loss_cycle_A + self.loss_cycle_B + self.loss_idt_A + self.loss_idt_B
-        self.loss_G = self.loss_G_A + self.loss_G_B + self.loss_cycle_A + self.loss_cycle_B + self.loss_idt_A + self.loss_idt_B
+        self.loss_G = self.loss_G_A + self.loss_G_B + self.loss_cycle_A + self.loss_idt_A + self.loss_idt_B
 
         self.loss_G.backward()
 
