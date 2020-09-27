@@ -23,12 +23,56 @@ from options.train_options import TrainOptions
 from data import create_dataset
 from models import create_model
 from util.visualizer import Visualizer
+import cv2
+import matplotlib.pyplot as plt
+import numpy as np
+from PIL import Image 
+import csv
+import pandas, random
 
 if __name__ == '__main__':
+
+    '''custom utilities'''
+
+    images_path = "/content/AttentionGAN/datasets/DeepFashion/real/img/"
+    # images_path = "../IUV/img/"
+    test_pairs_path = "/content/AttentionGAN/datasets/DeepFashion/fasion-resize-pairs-test.csv"
+    train_pairs_path = "/content/AttentionGAN/datasets/DeepFashion/fasion-resize-pairs-train.csv"
+
+    color_save_path = "/content/AttentionGAN/datasets/DeepFashion/segments/colors/"
+    layer_save_path = "/content/AttentionGAN/datasets/DeepFashion/segments/layers/"
+    csv_save_path = "/content/AttentionGAN/datasets/DeepFashion/segments/colors.csv"
+
+    colnames = ['Name', 'L1', 'L2', 'L3', 'L4', 'L5', 'L6', 'L7', 'L8', 'L9', 'L10', 'L11', 'L12']
+    data = pandas.read_csv(csv_save_path, names=colnames)
+    avail_ims = data['Name'].to_list()
+    L = []
+
+    for i in range(1,13):
+        L.append(data["L" + str(i)])
+
+    # print(len(L), L[0])
+
+    import csv
+    with open(train_pairs_path, newline='') as csvfile:
+        spamreader = csv.reader(csvfile, delimiter=' ', quotechar='|')
+        index = 0
+        csv_data = []
+        for row in spamreader:
+            csv_data.append([row[0].split(",")[0], row[0].split(",")[1]])
+            if(index==1500):
+                break
+            index+=1
+
+    random.shuffle(csv_data)
+
+
+    
+
     opt = TrainOptions().parse()   # get training options
-    dataset = create_dataset(opt)  # create a dataset given opt.dataset_mode and other options
-    dataset_size = len(dataset)    # get the number of images in the dataset.
-    print('The number of training images = %d' % dataset_size)
+##    dataset = create_dataset(opt, csv_data ,avail_ims, L)  # create a dataset given opt.dataset_mode and other options
+##    dataset_size = len(dataset)    # get the number of images in the dataset.
+##    print('The number of training images = %d' % dataset_size)
 
     model = create_model(opt)      # create a model given opt.model and other options
     model.setup(opt)               # regular setup: load and print networks; create schedulers
@@ -40,7 +84,9 @@ if __name__ == '__main__':
         iter_data_time = time.time()    # timer for data loading per iteration
         epoch_iter = 0                  # the number of training iterations in current epoch, reset to 0 every epoch
 
-        for i, data in enumerate(dataset):  # inner loop within one epoch
+##        for i, data in enumerate(dataset):  # inner loop within one epoch
+        for i in range(1000):
+            data = create_dataset(opt, csv_data ,avail_ims, L)  # create a dataset given opt.dataset_mode and other options
             iter_start_time = time.time()  # timer for computation per iteration
             if total_iters % opt.print_freq == 0:
                 t_data = iter_start_time - iter_data_time
