@@ -100,20 +100,20 @@ class AttentionGANModel(BaseModel):
         self.real_A_full = input['A' if AtoB else 'B'].to(self.device)
         
         self.real_A = self.real_A_full[:, :3, :,:].detach().clone()              #real A image RGB
-        self.LC_A = self.real_A_full[:, 3:3+10, :, :].detach().clone()         #real A LC
-        self.LC_Baug = self.real_A_full[:, 3+10:, :, :].detach().clone()       #augmented B LC
+        self.LC_A = self.real_A_full[:, 3:3+10+3, :, :].detach().clone()         #real A LC
+        self.LC_Baug = self.real_A_full[:, 3+10+3:, :, :].detach().clone()       #augmented B LC
 
         self.real_B_full = input['B' if AtoB else 'A'].to(self.device)      #real B with augmented LC to real LC B 
 
         self.real_B = self.real_B_full[:, :3, :,:].detach().clone()              #real B image RGB
-        self.LC_B = self.real_B_full[:, 3+10:, :, :].detach().clone()          #real B LC
+        self.LC_B = self.real_B_full[:, 3+10+3:, :, :].detach().clone()          #real B LC
 
         # print("shapes after slicing", self.real_B_full.shape, self.LC_A.shape, self.real_A.shape)
 
         self.idt_A_ip = torch.cat((self.real_A.detach().clone(),self.LC_A.detach().clone(), self.LC_A.detach().clone()), 1)    #real LC A to LC A
         self.idt_B_ip = torch.cat((self.real_B.detach().clone(),self.LC_B.detach().clone(), self.LC_B.detach().clone()), 1)    #real LC B to LC B
 
-        self.C_Baug = self.real_A_full[:, 3+10+10:, :, :].detach().clone()     #B augmented LC
+        self.C_Baug = self.real_A_full[:, 3+10+3+10:, :, :].detach().clone()     #B augmented LC
 
         self.gray_A = self.tensor2gray(self.real_A_full[:,:3,:,:].detach().clone())        #real A img GRAY
         self.gray_B = self.tensor2gray(self.real_B_full[:,:3,:,:].detach().clone())        #real B img GRAY
