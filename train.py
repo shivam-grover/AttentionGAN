@@ -35,7 +35,6 @@ if __name__ == '__main__':
     '''custom utilities'''
 
     import wandb
-    wandb.init(project="pose-appearance-cyclic-loss")
 
     images_path = "/content/AttentionGAN/datasets/DeepFashion/real/img/"
     # images_path = "../IUV/img/"
@@ -71,6 +70,7 @@ if __name__ == '__main__':
     
 
     opt = TrainOptions().parse()   # get training options
+    wandb.init(project="pose-appearance-cyclic-loss", config = opt)
     # opt.lambda_identity = 0
 ##    dataset = create_dataset(opt, csv_data ,avail_ims, L)  # create a dataset given opt.dataset_mode and other options
 ##    dataset_size = len(dataset)    # get the number of images in the dataset.
