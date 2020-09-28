@@ -87,7 +87,7 @@ if __name__ == '__main__':
         epoch_iter = 0                  # the number of training iterations in current epoch, reset to 0 every epoch
 
 ##        for i, data in enumerate(dataset):  # inner loop within one epoch
-        for i in range(500):
+        for i in range(1000):
             try:
                 data = create_dataset(opt, csv_data ,avail_ims, L)  # create a dataset given opt.dataset_mode and other options
             except:

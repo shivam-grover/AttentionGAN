@@ -16,6 +16,9 @@ class AttentionGANModel(BaseModel):
 
         return parser
 
+
+
+
     def __init__(self, opt):
         """Initialize the CycleGAN class.
         Parameters:
@@ -23,12 +26,12 @@ class AttentionGANModel(BaseModel):
         """
         BaseModel.__init__(self, opt)
         # specify the training losses you want to print out. The training/test scripts will call <BaseModel.get_current_losses>
-        self.loss_names = ['D_A', 'G_A', 'cycle_A', 'idt_A', 'D_B', 'G_B', 'cycle_B', 'idt_B']
+        self.loss_names = ['D_A', 'G_A', 'cycle_A', 'idt_A', 'D_B', 'G_B', 'cycle_B', 'idt_B', 'features_gray']
         # specify the images you want to save/display. The training/test scripts will call <BaseModel.get_current_visuals>
         visual_names_A = ['real_A', 'fake_B', 'rec_A', 'o1_b', 'o2_b', 'o3_b', 'o4_b', 'o5_b', 'o6_b', 'o7_b', 'o8_b', 'o9_b', 'o10_b',
         'a1_b', 'a2_b', 'a3_b', 'a4_b', 'a5_b', 'a6_b', 'a7_b', 'a8_b', 'a9_b', 'a10_b', 'i1_b', 'i2_b', 'i3_b', 'i4_b', 'i5_b', 
         'i6_b', 'i7_b', 'i8_b', 'i9_b', 'i10_b']
-        visual_names_B = ['real_B', 'rec_B']
+        visual_names_B = ['real_B', 'rec_B', 'C_Baug']
         if self.isTrain and self.opt.lambda_identity > 0.0:  # if identity loss is used, we also visualize idt_B=G_A(B) ad idt_A=G_A(B)
             visual_names_A.append('idt_B')
             visual_names_B.append('idt_A')
@@ -77,6 +80,13 @@ class AttentionGANModel(BaseModel):
             self.optimizers.append(self.optimizer_G)
             self.optimizers.append(self.optimizer_D)
 
+    def tensor2gray(self, a):
+        results = a.detach().clone()
+        results[:, 0,:,:] = 0.299 * results[: , 0, :, :] + 0.587 * results[: , 1, :, :] + 0.114 * results[: , 2, :, :]
+        results[:, 1,:,:] = results[: , 0, :, :]
+        results[:, 2,:,:] = results[: , 0, :, :]
+        return results
+
     def set_input(self, input):
         """Unpack input data from the dataloader and perform necessary pre-processing steps.
         Parameters:
@@ -88,18 +98,27 @@ class AttentionGANModel(BaseModel):
         #get the whole A image+layers+colors into real_A
         self.real_A_full = input['A' if AtoB else 'B'].to(self.device)
         
-        self.real_A = self.real_A_full[:, :3, :,:]
-        self.LC_A = self.real_A_full[:, 3:3+10+3, :, :]
-        self.LC_Baug = self.real_A_full[:, 3+10+3:, :, :]
+        self.real_A = self.real_A_full[:, :3, :,:].detach().clone()              #real A image RGB
+        self.LC_A = self.real_A_full[:, 3:3+10+3, :, :].detach().clone()         #real A LC
+        self.LC_Baug = self.real_A_full[:, 3+10+3:, :, :].detach().clone()       #augmented B LC
 
-        self.real_B_full = input['B' if AtoB else 'A'].to(self.device)
-        self.real_B = self.real_B_full[:, :3, :,:]
-        self.LC_B = self.real_B_full[:, 3+10+3:, :, :]
+        self.real_B_full = input['B' if AtoB else 'A'].to(self.device)      #real B with augmented LC to real LC B 
+
+        self.real_B = self.real_B_full[:, :3, :,:].detach().clone()              #real B image RGB
+        self.LC_B = self.real_B_full[:, 3+10+3:, :, :].detach().clone()          #real B LC
 
         # print("shapes after slicing", self.real_B_full.shape, self.LC_A.shape, self.real_A.shape)
 
-        self.idt_A_ip = torch.cat((self.real_A,self.LC_A, self.LC_A), 1)
-        self.idt_B_ip = torch.cat((self.real_B,self.LC_B, self.LC_B), 1)
+        self.idt_A_ip = torch.cat((self.real_A.detach().clone(),self.LC_A.detach().clone(), self.LC_A.detach().clone()), 1)    #real LC A to LC A
+        self.idt_B_ip = torch.cat((self.real_B.detach().clone(),self.LC_B.detach().clone(), self.LC_B.detach().clone()), 1)    #real LC B to LC B
+
+        self.C_Baug = self.real_A_full[:, 3+10+3+10:, :, :].detach().clone()     #B augmented LC
+
+        self.gray_A = self.tensor2gray(self.real_A_full[:,:3,:,:].detach().clone())        #real A img GRAY
+        self.gray_B = self.tensor2gray(self.real_B_full[:,:3,:,:].detach().clone())        #real B img GRAY
+
+        self.real_A_full[:, 0:3, :, :] = self.gray_A.detach().clone()
+        self.real_B_full[:, 0:3, :, :] = self.gray_B.detach().clone()
 
 
         self.image_paths = input['A_paths' if AtoB else 'B_paths']
@@ -114,9 +133,11 @@ class AttentionGANModel(BaseModel):
         self.i1_b, self.i2_b, self.i3_b, self.i4_b, self.i5_b, self.i6_b, self.i7_b, self.i8_b, self.i9_b, self.i10_b = self.netG_A(self.real_A_full)  # G_A(A)
         # print("Net G_A(real_A) done")
 
+        self.fake_B_gray = self.tensor2gray(self.fake_B.detach().clone())
+
         #fake_B is only the RGB reconstructed image
-        self.fake_B_full = torch.cat((self.fake_B, self.LC_Baug, self.LC_A), 1)
-        self.fake_B_for_rec = torch.cat((self.fake_B, self.LC_B, self.LC_A), 1)
+        self.fake_B_full = torch.cat((self.fake_B_gray.detach().clone(), self.LC_Baug.detach().clone(), self.LC_A.detach().clone()), 1)
+        self.fake_B_for_rec = torch.cat((self.fake_B_gray.detach().clone(), self.LC_Baug.detach().clone(), self.LC_B.detach().clone()), 1)
 
 
         self.rec_A, _, _, _, _, _, _, _, _, _, _, \
@@ -200,15 +221,18 @@ class AttentionGANModel(BaseModel):
         self.loss_G_B = self.criterionGAN(self.netD_A(self.rec_A), True)
 
         # Forward cycle loss || G_B(G_A(A)) - A||
-        self.loss_cycle_A = self.criterionCycle(self.rec_A, self.real_A) * lambda_A
+        self.loss_cycle_A = self.criterionCycle(self.rec_A, self.real_A) * lambda_A * 2
 
-        self.loss_cycle_B = self.criterionCycle(self.rec_B, self.real_B) * lambda_B * 3
+        self.loss_cycle_B = self.criterionCycle(self.rec_B, self.real_B) * lambda_B * 2
+
+        self.loss_features_gray = self.criterionCycle(self.fake_B_gray, self.gray_B) * lambda_B * 2
+
 
         # Backward cycle loss || G_A(G_B(B)) - B||
         # self.loss_cycle_B = self.criterionCycle(self.rec_B, self.real_B) * lambda_B
         # combined loss and calculate gradients
         # self.loss_G = self.loss_G_A + self.loss_G_B + self.loss_cycle_A + self.loss_cycle_B + self.loss_idt_A + self.loss_idt_B
-        self.loss_G = self.loss_G_A + self.loss_G_B + self.loss_cycle_A + self.loss_cycle_B + self.loss_idt_A + self.loss_idt_B
+        self.loss_G = self.loss_G_A + self.loss_G_B + self.loss_cycle_A + self.loss_cycle_B + self.loss_features_gray + self.loss_idt_A + self.loss_idt_B
 
         self.loss_G.backward()
 
