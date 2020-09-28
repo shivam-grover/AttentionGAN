@@ -229,7 +229,8 @@ def create_dataset_custom(csv_data, avail_ims, L, batch_size=4):
 			x[index,:,:,:] = im
 			im = (r_img2/255.0 - 0.5) * 2
 			
-			im = np.dstack((im, (l_img2-0.5)*2, (c_aug2/255.0 - 0.5) * 2 , (l_img1-0.5)*2, (c_img1/255.0 - 0.5) * 2))
+			# im = np.dstack((im, (l_img2-0.5)*2, (c_aug2/255.0 - 0.5) * 2 , (l_img1-0.5)*2, (c_img1/255.0 - 0.5) * 2))
+			im = np.dstack((im, (l_img2-0.5)*2, (c_aug2/255.0 - 0.5) * 2 , (l_img2-0.5)*2, (c_img2/255.0 - 0.5) * 2))
 			y[index,:,:,:] = im
 
 			

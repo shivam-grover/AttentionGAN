@@ -54,6 +54,8 @@ def save_image(image_numpy, image_path):
         image_path (str)          -- the path of the image
     """
     image_pil = Image.fromarray(image_numpy)
+    b, g, r = image_pil.split()
+    image_pil = Image.merge("RGB", (r, g, b))
     image_pil.save(image_path)
 
 

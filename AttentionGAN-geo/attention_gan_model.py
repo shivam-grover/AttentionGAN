@@ -23,12 +23,12 @@ class AttentionGANModel(BaseModel):
         """
         BaseModel.__init__(self, opt)
         # specify the training losses you want to print out. The training/test scripts will call <BaseModel.get_current_losses>
-        self.loss_names = ['D_A', 'G_A', 'cycle_A', 'idt_A', 'D_B', 'G_B',  'idt_B']
+        self.loss_names = ['D_A', 'G_A', 'cycle_A', 'idt_A', 'D_B', 'G_B', 'cycle_B', 'idt_B']
         # specify the images you want to save/display. The training/test scripts will call <BaseModel.get_current_visuals>
         visual_names_A = ['real_A', 'fake_B', 'rec_A', 'o1_b', 'o2_b', 'o3_b', 'o4_b', 'o5_b', 'o6_b', 'o7_b', 'o8_b', 'o9_b', 'o10_b',
         'a1_b', 'a2_b', 'a3_b', 'a4_b', 'a5_b', 'a6_b', 'a7_b', 'a8_b', 'a9_b', 'a10_b', 'i1_b', 'i2_b', 'i3_b', 'i4_b', 'i5_b', 
         'i6_b', 'i7_b', 'i8_b', 'i9_b', 'i10_b']
-        visual_names_B = ['real_B']
+        visual_names_B = ['real_B', 'rec_B']
         if self.isTrain and self.opt.lambda_identity > 0.0:  # if identity loss is used, we also visualize idt_B=G_A(B) ad idt_A=G_A(B)
             visual_names_A.append('idt_B')
             visual_names_B.append('idt_A')
@@ -63,8 +63,8 @@ class AttentionGANModel(BaseModel):
                                             opt.n_layers_D, opt.norm, opt.init_type, opt.init_gain, self.gpu_ids)
 
         if self.isTrain:
-            if opt.lambda_identity > 0.0:  # only works when input and output images have the same number of channels
-                assert(opt.input_nc == opt.output_nc)
+            # if opt.lambda_identity > 0.0:  # only works when input and output images have the same number of channels
+            #     assert(opt.input_nc == opt.output_nc)
             self.fake_A_pool = ImagePool(opt.pool_size)  # create image buffer to store previously generated images
             self.fake_B_pool = ImagePool(opt.pool_size)  # create image buffer to store previously generated images
             # define loss functions
@@ -90,17 +90,18 @@ class AttentionGANModel(BaseModel):
         
         self.real_A = self.real_A_full[:, :3, :,:]
         self.LC_A = self.real_A_full[:, 3:3+10+3, :, :]
-        self.LC_B = self.real_A_full[:, 3+10+3:, :, :]
-
+        self.LC_Baug = self.real_A_full[:, 3+10+3:, :, :]
 
         self.real_B_full = input['B' if AtoB else 'A'].to(self.device)
         self.real_B = self.real_B_full[:, :3, :,:]
+        self.LC_B = self.real_B_full[:, 3+10+3:, :, :]
 
         # print("shapes after slicing", self.real_B_full.shape, self.LC_A.shape, self.real_A.shape)
 
-        self.idt_A_ip = torch.cat((self.real_A,self.LC_A, self.LC_A))
-        self.idt_B_ip = torch.cat((self.real_B,self.LC_B, self.LC_B))
-        
+        self.idt_A_ip = torch.cat((self.real_A,self.LC_A, self.LC_A), 1)
+        self.idt_B_ip = torch.cat((self.real_B,self.LC_B, self.LC_B), 1)
+
+
         self.image_paths = input['A_paths' if AtoB else 'B_paths']
 
     def forward(self):
@@ -114,7 +115,9 @@ class AttentionGANModel(BaseModel):
         # print("Net G_A(real_A) done")
 
         #fake_B is only the RGB reconstructed image
-        self.fake_B_full = torch.cat((self.fake_B, self.LC_B, self.LC_A), 1)
+        self.fake_B_full = torch.cat((self.fake_B, self.LC_Baug, self.LC_A), 1)
+        self.fake_B_for_rec = torch.cat((self.fake_B, self.LC_B, self.LC_A), 1)
+
 
         self.rec_A, _, _, _, _, _, _, _, _, _, _, \
         _, _, _, _, _, _, _, _, _, _, \
@@ -123,7 +126,7 @@ class AttentionGANModel(BaseModel):
 
         self.rec_B, _, _, _, _, _, _, _, _, _, _, \
         _, _, _, _, _, _, _, _, _, _, \
-        _, _, _, _, _, _, _, _, _, _ = self.netG_B(self.fake_B_full)   # G_B(G_A(A))
+        _, _, _, _, _, _, _, _, _, _ = self.netG_B(self.fake_B_for_rec)   # G_B(G_A(A))
 
 
         # self.fake_A, \
@@ -199,7 +202,7 @@ class AttentionGANModel(BaseModel):
         # Forward cycle loss || G_B(G_A(A)) - A||
         self.loss_cycle_A = self.criterionCycle(self.rec_A, self.real_A) * lambda_A
 
-        self.loss_cycle_B = self.criterionCycle(self.rec_B, self.real_B) * lambda_B
+        self.loss_cycle_B = self.criterionCycle(self.rec_B, self.real_B) * lambda_B * 3
 
         # Backward cycle loss || G_A(G_B(B)) - B||
         # self.loss_cycle_B = self.criterionCycle(self.rec_B, self.real_B) * lambda_B
