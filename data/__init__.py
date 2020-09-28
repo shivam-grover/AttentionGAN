@@ -146,8 +146,8 @@ def create_dataset_custom(csv_data, avail_ims, L, batch_size=4):
 	index = 0
 	# for inp,out in csv_data:
 	n_pairs = len(csv_data)
-	x = np.zeros((4,256,256, 3+10+10+3))
-	y = np.zeros((4,256,256, 3+10+10+3))
+	x = np.zeros((4,256,256, 3+10+3+10+3))
+	y = np.zeros((4,256,256, 3+10+3+10+3))
 	A_paths = []
 	B_paths = []
 
@@ -222,7 +222,7 @@ def create_dataset_custom(csv_data, avail_ims, L, batch_size=4):
 			# im = np.dstack((im, l_img1, c_img1, l_img2, c_img2))
 
 			#replacing original colors with the augmented ones
-			im = np.dstack((im, (l_img1-0.5)*2, (l_img2-0.5)*2, (c_aug2/255.0 - 0.5) * 2))
+			im = np.dstack((im, (l_img1-0.5)*2, (c_img1/255.0 - 0.5) * 2, (l_img2-0.5)*2, (c_aug2/255.0 - 0.5) * 2))
 
 			# print(x.shape ,im.shape, r_img1.shape, l_img1.shape, c_img1.shape, l_img2.shape,c_img2.shape)
 			
@@ -230,7 +230,7 @@ def create_dataset_custom(csv_data, avail_ims, L, batch_size=4):
 			im = (r_img2/255.0 - 0.5) * 2
 			
 			# im = np.dstack((im, (l_img2-0.5)*2, (c_aug2/255.0 - 0.5) * 2 , (l_img1-0.5)*2, (c_img1/255.0 - 0.5) * 2))
-			im = np.dstack((im, (l_img2-0.5)*2, (l_img2-0.5)*2, (c_img2/255.0 - 0.5) * 2))
+			im = np.dstack((im, (l_img2-0.5)*2, (c_aug2/255.0 - 0.5) * 2 , (l_img2-0.5)*2, (c_img2/255.0 - 0.5) * 2))
 			y[index,:,:,:] = im
 
 			
