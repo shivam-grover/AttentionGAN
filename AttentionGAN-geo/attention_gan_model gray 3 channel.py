@@ -124,35 +124,23 @@ class AttentionGANModel(BaseModel):
         self.real_A_org = input['A' if AtoB else 'B'].to(self.device)
         self.real_B_org = input['B' if AtoB else 'A'].to(self.device)      #real B with augmented LC to real LC B 
 
-        self.gray_A_three = self.tensor2gray(self.real_A_org[:,:3,:,:].detach().clone())        #real A img GRAY
-        self.gray_B_three = self.tensor2gray(self.real_B_org[:,:3,:,:].detach().clone())        #real B img GRAY
-
-        self.gray_A = self.gray_A_three[:,0,:,:].detach().clone()
-        self.gray_B = self.gray_B_three[:,0,:,:].detach().clone()
-
-
         self.real_A = self.real_A_org[:, :3, :,:].detach().clone()              #real A image RGB
         # self.LC_A = self.real_A_full[:, 3:3+10+3, :, :].detach().clone()         #real A LC
-        # self.L_A = self.real_A_org[:, 3:3+10, :, :].detach().clone()         #real A LC
+        self.L_A = self.real_A_org[:, 3:3+10, :, :].detach().clone()         #real A LC
+        self.C_A = self.real_A_org[:, 3+10:3+10+3, :, :].detach().clone()         #real A LC
         
-        self.L_A = self.real_A_org[:, 3:3+1, :, :].detach().clone()
-        self.C_A = self.real_A_org[:, 3+1:3+1+3, :, :].detach().clone()         #real A LC
-        
+        self.L_B = self.real_A_org[:, 3+10+3:3+10+3+10, :, :].detach().clone()       #augmented B LC
+        self.C_Baug = self.real_A_org[:, 3+10+3+10:, :, :].detach().clone()       #augmented B LC
 
-        # self.L_B = self.real_A_org[:, 3+10+3:3+10+3+10, :, :].detach().clone()       #augmented B LC
-        self.L_B = self.real_B_org[:, 3:3+1, :, :].detach().clone()
-        
-        self.C_Baug = self.real_A_org[:, 3+1+3+1:, :, :].detach().clone()       #augmented B LC
+        self.real_A_full = torch.cat((self.real_A.detach().clone(), self.L_A.detach().clone(), self.L_B.detach().clone(), self.C_Baug.detach().clone()), 1)
 
-        self.real_A_full = torch.cat((self.gray_A.detach().clone(), self.L_A.detach().clone(), self.L_B.detach().clone(), self.C_Baug.detach().clone()), 1)
-
-        print("real_A_org.shape", self.real_A_org.shape, "real_A_full.shape", self.real_A_full.shape)
+        # print("real_A_org.shape", self.real_A_org.shape, "real_A_full.shape", self.real_A_full.shape)
 
         self.real_B = self.real_B_org[:, :3, :,:].detach().clone()              #real B image RGB
-        self.C_B = self.real_B_org[:,  3+1+3+1:, :, :].detach().clone()
+        self.C_B = self.real_B_org[:, 3+10+3+10:, :,:].detach().clone()
 
-        # self.gray_A = self.tensor2gray(self.real_A_org[:,:3,:,:].detach().clone())        #real A img GRAY
-        # self.gray_B = self.tensor2gray(self.real_B_org[:,:3,:,:].detach().clone())        #real B img GRAY
+        self.gray_A = self.tensor2gray(self.real_A_org[:,:3,:,:].detach().clone())        #real A img GRAY
+        self.gray_B = self.tensor2gray(self.real_B_org[:,:3,:,:].detach().clone())        #real B img GRAY
 
 
         self.idt_A_ip = torch.cat((self.gray_A.detach().clone(),self.L_A.detach().clone(), self.L_A.detach().clone(), self.C_A.detach().clone()), 1)    #real LC A to LC A
@@ -174,9 +162,7 @@ class AttentionGANModel(BaseModel):
         self.i1_b, self.i2_b, self.i3_b, self.i4_b, self.i5_b, self.i6_b, self.i7_b, self.i8_b, self.i9_b, self.i10_b = self.netG_A(self.real_A_full)  # G_A(A)
         # print("Net G_A(real_A) done")
 
-        self.fake_B_gray_3 = self.tensor2gray(self.fake_B.detach().clone())
-        self.fake_B_gray = self.fake_B_gray_3[:,0,:,:].detach().clone()
-
+        self.fake_B_gray = self.tensor2gray(self.fake_B.detach().clone())
 
         #fake_B is only the RGB reconstructed image
         self.fake_B_full = torch.cat((self.fake_B_gray.detach().clone(), self.L_B.detach().clone(), self.L_A.detach().clone(), self.C_A.detach().clone()), 1)

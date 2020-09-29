@@ -142,41 +142,13 @@ def changeColors(colored_img, color_list, avail_ims, name):
 
 		return colored_image
 
-def create_segments(colored_image color_list, avail_ims, name):
-    # n_len = len(color_list[0])
-
-    colored_image = colored_img.copy()
-
-    # n = random.randint(0, n_len)        
-    orig_index = avail_ims.index(name)
-    original_colors = getColorsFromIndex(color_list, orig_index)
-
-    # new_colors = getColorsFromIndex(color_list, n)
-
-    # print("original_colors", original_colors)
-    # print("new_colors", new_colors)
-
-    '''ORDER : chest, head, LThigh, LShin, RThigh, RShin,  LArm, LF, RArm, RF, RFeet, LFeet'''
-
-
-    for i in range(len(color_list)):
-        colored_image[:,:,0] = np.where(colored_image[:,:,0]==original_colors[i][0], i, colored_image[:,:,0])
-        # colored_image[:,:,1] = np.where(colored_image[:,:,1]==original_colors[i][1], new_colors[i][1], colored_image[:,:,1])
-        # colored_image[:,:,2] = np.where(colored_image[:,:,2]==original_colors[i][2], new_colors[i][2], colored_image[:,:,2])
-
-    segment_image = colored_image[:,:,0]
-
-    return segment_image
-
 def create_dataset_custom(csv_data, avail_ims, L, batch_size=4):
 	index = 0
 	# for inp,out in csv_data:
 	n_pairs = len(csv_data)
-	# x = np.zeros((4,256,256, 3+10+3+10+3))
-	# y = np.zeros((4,256,256, 3+10+3+10+3))
-    x = np.zeros((4,256,256, 3+1+3+1+3))
-    y = np.zeros((4,256,256, 3+1+3+1+3))
-    A_paths = []
+	x = np.zeros((4,256,256, 3+10+3+10+3))
+	y = np.zeros((4,256,256, 3+10+3+10+3))
+	A_paths = []
 	B_paths = []
 
 	while(index<batch_size):
@@ -208,13 +180,13 @@ def create_dataset_custom(csv_data, avail_ims, L, batch_size=4):
 
 			#load layers for 1
 			
-			# image = np.load(layer_save_path + "layers_" + inp + ".npz")
+			image = np.load(layer_save_path + "layers_" + inp + ".npz")
 
-			# image = image["array1"]
-			# image[:,:,3] = np.where(image[:,:,11], 1.0,image[:,:,3])
-			# image[:,:,5] = np.where(image[:,:,10], 1.0,image[:,:,5])
-			# image = image[:,:,:10]
-			# l_img1 = image
+			image = image["array1"]
+			image[:,:,3] = np.where(image[:,:,11], 1.0,image[:,:,3])
+			image[:,:,5] = np.where(image[:,:,10], 1.0,image[:,:,5])
+			image = image[:,:,:10]
+			l_img1 = image
 
 			#load colors for 1
 			c_img1 = cv2.imread(color_save_path + "color_" + inp + ".png")
@@ -223,23 +195,19 @@ def create_dataset_custom(csv_data, avail_ims, L, batch_size=4):
 			r_img2 = cv2.imread(image_path_to)
 
 			#load layers for 2
-			# image = np.load(layer_save_path + "layers_" + out + ".npz")
+			image = np.load(layer_save_path + "layers_" + out + ".npz")
 
-			# image = image["array1"]
-			# image[:,:,3] = np.where(image[:,:,11], 1.0,image[:,:,3])
-			# image[:,:,5] = np.where(image[:,:,10], 1.0,image[:,:,5])
-			# image = image[:,:,:10]
-			# l_img2 = image
+			image = image["array1"]
+			image[:,:,3] = np.where(image[:,:,11], 1.0,image[:,:,3])
+			image[:,:,5] = np.where(image[:,:,10], 1.0,image[:,:,5])
+			image = image[:,:,:10]
+			l_img2 = image
 
 			#load colors for 2
 			c_img2 = cv2.imread(color_save_path + "color_" + out + ".png")
 
 			#change colors of c_img1
 			c_aug2 = changeColors(c_img2, L, avail_ims, out)
-
-            seg_1 = create_segments(c_img1, L, avail_ims, inp)
-
-            seg_2 = create_segments(c_img1, L, avail_ims, out)
 
 ##			cv2.imshow("augmenty", c_aug2)
 
@@ -254,8 +222,7 @@ def create_dataset_custom(csv_data, avail_ims, L, batch_size=4):
 			# im = np.dstack((im, l_img1, c_img1, l_img2, c_img2))
 
 			#replacing original colors with the augmented ones
-			# im = np.dstack((im, (l_img1-0.5)*2, (c_img1/255.0 - 0.5) * 2, (l_img2-0.5)*2, (c_aug2/255.0 - 0.5) * 2))
-            im = np.dstack((im, seg_1, (c_img1/255.0 - 0.5) * 2, seg_2, (c_aug2/255.0 - 0.5) * 2))
+			im = np.dstack((im, (l_img1-0.5)*2, (c_img1/255.0 - 0.5) * 2, (l_img2-0.5)*2, (c_aug2/255.0 - 0.5) * 2))
 
 			# print(x.shape ,im.shape, r_img1.shape, l_img1.shape, c_img1.shape, l_img2.shape,c_img2.shape)
 			
@@ -263,7 +230,7 @@ def create_dataset_custom(csv_data, avail_ims, L, batch_size=4):
 			im = (r_img2/255.0 - 0.5) * 2
 			
 			# im = np.dstack((im, (l_img2-0.5)*2, (c_aug2/255.0 - 0.5) * 2 , (l_img1-0.5)*2, (c_img1/255.0 - 0.5) * 2))
-			im = np.dstack((im, seg_2, (c_aug2/255.0 - 0.5) * 2 , seg_2, (c_img2/255.0 - 0.5) * 2))
+			im = np.dstack((im, (l_img2-0.5)*2, (c_aug2/255.0 - 0.5) * 2 , (l_img2-0.5)*2, (c_img2/255.0 - 0.5) * 2))
 			y[index,:,:,:] = im
 
 			
