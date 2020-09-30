@@ -111,142 +111,142 @@ def getFilePath(raw_name):
     return folders
 
 def getColorsFromIndex(L, index):
-	colors = []
+    colors = []
 
-	for i in L:
-		colors.append([int(val) for val in i[index].split("_")])
+    for i in L:
+        colors.append([int(val) for val in i[index].split("_")])
 
-	return colors
+    return colors
 
 def changeColors(colored_img, color_list, avail_ims, name):
-		n_len = len(color_list[0])
+        n_len = len(color_list[0])
 
-		colored_image = colored_img.copy()
+        colored_image = colored_img.copy()
 
-		n = random.randint(0, n_len)		
-		orig_index = avail_ims.index(name)
-		original_colors = getColorsFromIndex(color_list, orig_index)
+        n = random.randint(0, n_len)        
+        orig_index = avail_ims.index(name)
+        original_colors = getColorsFromIndex(color_list, orig_index)
 
-		new_colors = getColorsFromIndex(color_list, n)
+        new_colors = getColorsFromIndex(color_list, n)
 
-		# print("original_colors", original_colors)
-		# print("new_colors", new_colors)
+        # print("original_colors", original_colors)
+        # print("new_colors", new_colors)
 
-		'''ORDER : chest, head, LThigh, LShin, RThigh, RShin,  LArm, LF, RArm, RF, RFeet, LFeet'''
+        '''ORDER : chest, head, LThigh, LShin, RThigh, RShin,  LArm, LF, RArm, RF, RFeet, LFeet'''
 
-		for i in range(len(color_list)):
-			colored_image[:,:,0] = np.where(colored_image[:,:,0]==original_colors[i][0], new_colors[i][0], colored_image[:,:,0])
-			colored_image[:,:,1] = np.where(colored_image[:,:,1]==original_colors[i][1], new_colors[i][1], colored_image[:,:,1])
-			colored_image[:,:,2] = np.where(colored_image[:,:,2]==original_colors[i][2], new_colors[i][2], colored_image[:,:,2])
+        for i in range(len(color_list)):
+            colored_image[:,:,0] = np.where(colored_image[:,:,0]==original_colors[i][0], new_colors[i][0], colored_image[:,:,0])
+            colored_image[:,:,1] = np.where(colored_image[:,:,1]==original_colors[i][1], new_colors[i][1], colored_image[:,:,1])
+            colored_image[:,:,2] = np.where(colored_image[:,:,2]==original_colors[i][2], new_colors[i][2], colored_image[:,:,2])
 
 
-		return colored_image
+        return colored_image
 
 def create_dataset_custom(csv_data, avail_ims, L, batch_size=4):
-	index = 0
-	# for inp,out in csv_data:
-	n_pairs = len(csv_data)
-	x = np.zeros((4,256,256, 3+10+3+10+3))
-	y = np.zeros((4,256,256, 3+10+3+10+3))
-	A_paths = []
-	B_paths = []
+    index = 0
+    # for inp,out in csv_data:
+    n_pairs = len(csv_data)
+    x = np.zeros((4,256,256, 3+10+3+10+3))
+    y = np.zeros((4,256,256, 3+10+3+10+3))
+    A_paths = []
+    B_paths = []
 
-	while(index<batch_size):
-		
-		# Generates a random number between 
-		# a given positive range 
-		n = random.randint(0, n_pairs-1)		
+    while(index<batch_size):
+        
+        # Generates a random number between 
+        # a given positive range 
+        n = random.randint(0, n_pairs-1)        
 
-		inp , out = csv_data[n]
+        inp , out = csv_data[n]
 
-		
+        
 
-		if((inp in avail_ims) and (out in avail_ims)):
-			# print("matched")
+        if((inp in avail_ims) and (out in avail_ims)):
+            # print("matched")
 
-			frm = getFilePath(inp)
-			to = getFilePath(out)
+            frm = getFilePath(inp)
+            to = getFilePath(out)
 
-			A_paths.append(frm)
-			B_paths.append(to)
+            A_paths.append(frm)
+            B_paths.append(to)
 
-			image_path_frm = images_path + frm[0] + "/" + frm[1] + "/" + frm[2] + "/" + frm[3]
-			image_path_to = images_path + to[0] + "/" + to[1] + "/" + to[2] + "/" + to[3]
-
-
-			#load real image
-			r_img1 = cv2.imread(image_path_frm)
+            image_path_frm = images_path + frm[0] + "/" + frm[1] + "/" + frm[2] + "/" + frm[3]
+            image_path_to = images_path + to[0] + "/" + to[1] + "/" + to[2] + "/" + to[3]
 
 
-			#load layers for 1
-			
-			image = np.load(layer_save_path + "layers_" + inp + ".npz")
+            #load real image
+            r_img1 = cv2.imread(image_path_frm)
 
-			image = image["array1"]
-			image[:,:,3] = np.where(image[:,:,11], 1.0,image[:,:,3])
-			image[:,:,5] = np.where(image[:,:,10], 1.0,image[:,:,5])
-			image = image[:,:,:10]
-			l_img1 = image
 
-			#load colors for 1
-			c_img1 = cv2.imread(color_save_path + "color_" + inp + ".png")
+            #load layers for 1
+            
+            image = np.load(layer_save_path + "layers_" + inp + ".npz")
 
-			#load real image for 2
-			r_img2 = cv2.imread(image_path_to)
+            image = image["array1"]
+            image[:,:,3] = np.where(image[:,:,11], 1.0,image[:,:,3])
+            image[:,:,5] = np.where(image[:,:,10], 1.0,image[:,:,5])
+            image = image[:,:,:10]
+            l_img1 = image
 
-			#load layers for 2
-			image = np.load(layer_save_path + "layers_" + out + ".npz")
+            #load colors for 1
+            c_img1 = cv2.imread(color_save_path + "color_" + inp + ".png")
 
-			image = image["array1"]
-			image[:,:,3] = np.where(image[:,:,11], 1.0,image[:,:,3])
-			image[:,:,5] = np.where(image[:,:,10], 1.0,image[:,:,5])
-			image = image[:,:,:10]
-			l_img2 = image
+            #load real image for 2
+            r_img2 = cv2.imread(image_path_to)
 
-			#load colors for 2
-			c_img2 = cv2.imread(color_save_path + "color_" + out + ".png")
+            #load layers for 2
+            image = np.load(layer_save_path + "layers_" + out + ".npz")
 
-			#change colors of c_img1
-			c_aug2 = changeColors(c_img2, L, avail_ims, out)
+            image = image["array1"]
+            image[:,:,3] = np.where(image[:,:,11], 1.0,image[:,:,3])
+            image[:,:,5] = np.where(image[:,:,10], 1.0,image[:,:,5])
+            image = image[:,:,:10]
+            l_img2 = image
 
-##			cv2.imshow("augmenty", c_aug2)
+            #load colors for 2
+            c_img2 = cv2.imread(color_save_path + "color_" + out + ".png")
 
-			# try:
-			# 	x = np.dstack((x,r_img1, l_img1, c_img1, l_img2, c_img2))
-			# 	y = np.dstack((y,r_img2, l_img2, c_img2, l_img1, c_img1))
-			# except:
-			# 	x = 
+            #change colors of c_img1
+            c_aug2 = changeColors(c_img2, L, avail_ims, out)
 
-			im = (r_img1/255.0 - 0.5) * 2
+##          cv2.imshow("augmenty", c_aug2)
 
-			# im = np.dstack((im, l_img1, c_img1, l_img2, c_img2))
+            # try:
+            #   x = np.dstack((x,r_img1, l_img1, c_img1, l_img2, c_img2))
+            #   y = np.dstack((y,r_img2, l_img2, c_img2, l_img1, c_img1))
+            # except:
+            #   x = 
 
-			#replacing original colors with the augmented ones
-			im = np.dstack((im, (l_img1-0.5)*2, (c_img1/255.0 - 0.5) * 2, (l_img2-0.5)*2, (c_aug2/255.0 - 0.5) * 2))
+            im = (r_img1/255.0 - 0.5) * 2
 
-			# print(x.shape ,im.shape, r_img1.shape, l_img1.shape, c_img1.shape, l_img2.shape,c_img2.shape)
-			
-			x[index,:,:,:] = im
-			im = (r_img2/255.0 - 0.5) * 2
-			
-			# im = np.dstack((im, (l_img2-0.5)*2, (c_aug2/255.0 - 0.5) * 2 , (l_img1-0.5)*2, (c_img1/255.0 - 0.5) * 2))
-			im = np.dstack((im, (l_img2-0.5)*2, (c_aug2/255.0 - 0.5) * 2 , (l_img2-0.5)*2, (c_img2/255.0 - 0.5) * 2))
-			y[index,:,:,:] = im
+            # im = np.dstack((im, l_img1, c_img1, l_img2, c_img2))
 
-			
-			index += 1
-	# a = np.moveaxis(x, 3, 1);b = np.moveaxis(y, 3, 1);a = torch.from_numpy(a.astype("float32"));b = torch.from_numpy(b.astype("float32"));
-	a = torch.from_numpy(x.astype("float32"));b = torch.from_numpy(y.astype("float32"));a = a.permute(0, 3, 1, 2); b = b.permute(0,3,1,2);
-	# c = a.permute(0,2,3,1)
-	'''dict_keys(['A', 'B', 'A_paths', 'B_paths'])'''
-	#for colab
-##	a = torch.from_numpy(x)
-##	b = torch.from_numpy(y)
-##	a = x
-##	b = y
+            #replacing original colors with the augmented ones
+            im = np.dstack((im, (l_img1-0.5)*2, (c_img1/255.0 - 0.5) * 2, (l_img2-0.5)*2, (c_aug2/255.0 - 0.5) * 2))
 
-	
-	return {'A':a, 'B':b, 'A_paths': A_paths, 'B_paths':B_paths}
+            # print(x.shape ,im.shape, r_img1.shape, l_img1.shape, c_img1.shape, l_img2.shape,c_img2.shape)
+            
+            x[index,:,:,:] = im
+            im = (r_img2/255.0 - 0.5) * 2
+            
+            # im = np.dstack((im, (l_img2-0.5)*2, (c_aug2/255.0 - 0.5) * 2 , (l_img1-0.5)*2, (c_img1/255.0 - 0.5) * 2))
+            im = np.dstack((im, (l_img2-0.5)*2, (c_aug2/255.0 - 0.5) * 2 , (l_img2-0.5)*2, (c_img2/255.0 - 0.5) * 2))
+            y[index,:,:,:] = im
+
+            
+            index += 1
+    # a = np.moveaxis(x, 3, 1);b = np.moveaxis(y, 3, 1);a = torch.from_numpy(a.astype("float32"));b = torch.from_numpy(b.astype("float32"));
+    a = torch.from_numpy(x.astype("float32"));b = torch.from_numpy(y.astype("float32"));a = a.permute(0, 3, 1, 2); b = b.permute(0,3,1,2);
+    # c = a.permute(0,2,3,1)
+    '''dict_keys(['A', 'B', 'A_paths', 'B_paths'])'''
+    #for colab
+##  a = torch.from_numpy(x)
+##  b = torch.from_numpy(y)
+##  a = x
+##  b = y
+
+    
+    return {'A':a, 'B':b, 'A_paths': A_paths, 'B_paths':B_paths}
 
 def create_dataset(opt, csv_data, avail_ims, L):
     """Create a dataset given the option.

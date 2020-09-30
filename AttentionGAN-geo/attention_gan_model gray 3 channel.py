@@ -131,8 +131,11 @@ class AttentionGANModel(BaseModel):
         
         self.L_B = self.real_A_org[:, 3+10+3:3+10+3+10, :, :].detach().clone()       #augmented B LC
         self.C_Baug = self.real_A_org[:, 3+10+3+10:, :, :].detach().clone()       #augmented B LC
+   
+        self.gray_A = self.tensor2gray(self.real_A_org[:,:3,:,:].detach().clone())        #real A img GRAY
+        self.gray_B = self.tensor2gray(self.real_B_org[:,:3,:,:].detach().clone())        #real B img GRAY
 
-        self.real_A_full = torch.cat((self.real_A.detach().clone(), self.L_A.detach().clone(), self.L_B.detach().clone(), self.C_Baug.detach().clone()), 1)
+        self.real_A_full = torch.cat((self.gray_A.detach().clone(), self.L_A.detach().clone(), self.L_B.detach().clone(), self.C_Baug.detach().clone()), 1)
 
         # print("real_A_org.shape", self.real_A_org.shape, "real_A_full.shape", self.real_A_full.shape)
 
