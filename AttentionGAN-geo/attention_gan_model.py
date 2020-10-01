@@ -4,6 +4,8 @@ from util.image_pool import ImagePool
 from .base_model import BaseModel
 from . import networks
 import math
+import numpy as np
+import cv2
 
 class AttentionGANModel(BaseModel):
     @staticmethod
@@ -26,7 +28,7 @@ class AttentionGANModel(BaseModel):
         """
         BaseModel.__init__(self, opt)
         # specify the training losses you want to print out. The training/test scripts will call <BaseModel.get_current_losses>
-        self.loss_names = ['D_A', 'G_A', 'cycle_A', 'idt_A', 'D_B', 'G_B', 'cycle_B', 'idt_B', 'features_gray']
+        self.loss_names = ['D_A', 'G_A', 'cycle_A', 'idt_A', 'D_B', 'G_B', 'cycle_B', 'idt_B', 'features_edges'] #'features_gray'
         # specify the images you want to save/display. The training/test scripts will call <BaseModel.get_current_visuals>
         # visual_names_A = ['real_A', 'fake_B', 'rec_A', 'o1_b', 'o2_b', 'o3_b', 'o4_b', 'o5_b', 'o6_b', 'o7_b', 'o8_b', 'o9_b', 'o10_b',
         # 'a1_b', 'a2_b', 'a3_b', 'a4_b', 'a5_b', 'a6_b', 'a7_b', 'a8_b', 'a9_b', 'a10_b', 'i1_b', 'i2_b', 'i3_b', 'i4_b', 'i5_b', 
@@ -82,12 +84,12 @@ class AttentionGANModel(BaseModel):
             self.optimizers.append(self.optimizer_D)
 
 
-    def calculateEdges(tensor,batch_size=4, lower = 10, upper = 210):
+    def calculateEdges(self, tensor,batch_size=4, lower = 10, upper = 210):
       real_A = tensor[:,:3,:,:].cpu().detach().numpy()  #GET THE PREDICTED NUMPY IMAGE
       real_A = np.rollaxis(real_A, 1, 4)    #ROLL IT'S AXES TO GET CV2 IMAGE
       real_A = (real_A/2.0 + 0.5)*255
       out = np.zeros((real_A.shape[0], real_A.shape[1], real_A.shape[2]))
-      print(real_A.shape, out.shape)
+      # print(real_A.shape, out.shape)
       for i in range(batch_size):
         img = real_A[i,:,:,:]
         imgrgb=img.astype(np.uint8)
@@ -98,7 +100,7 @@ class AttentionGANModel(BaseModel):
       
       return out
 
-    def L1_dist(i1, i2):
+    def L1_dist(self, i1, i2):
         # return math.sqrt(np.mean((i1-i2)**2))
         return np.mean(np.abs(i1-i2))
 
@@ -182,6 +184,7 @@ class AttentionGANModel(BaseModel):
         self.idt_A_ip = torch.cat((self.gray_A.detach().clone(),self.L_A.detach().clone(), self.L_A.detach().clone(), self.C_A.detach().clone()), 1)    #real LC A to LC A
         self.idt_B_ip = torch.cat((self.gray_B.detach().clone(),self.L_B.detach().clone(), self.L_B.detach().clone(), self.C_B.detach().clone()), 1)    #real LC A to LC A
 
+        # print(self.real_B.shape)
         self.real_B_edges = self.calculateEdges(self.real_B)
 
         # self.real_B_full = torch.cat((self.real_B, self.L_B, self.L_B, self.C_Baug), 1)
@@ -296,7 +299,7 @@ class AttentionGANModel(BaseModel):
 
         # self.loss_features_gray = self.criterionCycle(self.fake_B_gray, self.gray_B) * lambda_B * 2
 
-        self.loss_features_edges = self.L1_dist(self.real_B_edges, self.fake_B_edges) * lambda_A * 2
+        self.loss_features_edges = self.L1_dist(self.real_B_edges, self.fake_B_edges)/5
 
         # Backward cycle loss || G_A(G_B(B)) - B||
         # self.loss_cycle_B = self.criterionCycle(self.rec_B, self.real_B) * lambda_B
