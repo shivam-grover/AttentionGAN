@@ -3,7 +3,7 @@ import itertools
 from util.image_pool import ImagePool
 from .base_model import BaseModel
 from . import networks
-
+import math
 
 class AttentionGANModel(BaseModel):
     @staticmethod
@@ -80,6 +80,28 @@ class AttentionGANModel(BaseModel):
             self.optimizer_D = torch.optim.Adam(itertools.chain(self.netD_A.parameters(), self.netD_B.parameters()), lr=opt.lr, betas=(opt.beta1, 0.999))
             self.optimizers.append(self.optimizer_G)
             self.optimizers.append(self.optimizer_D)
+
+
+    def calculateEdges(tensor,batch_size=4, lower = 10, upper = 210):
+      real_A = tensor[:,:3,:,:].cpu().detach().numpy()  #GET THE PREDICTED NUMPY IMAGE
+      real_A = np.rollaxis(real_A, 1, 4)    #ROLL IT'S AXES TO GET CV2 IMAGE
+      real_A = (real_A/2.0 + 0.5)*255
+      out = np.zeros((real_A.shape[0], real_A.shape[1], real_A.shape[2]))
+      print(real_A.shape, out.shape)
+      for i in range(batch_size):
+        img = real_A[i,:,:,:]
+        imgrgb=img.astype(np.uint8)
+        gray = cv2.cvtColor(imgrgb, cv2.COLOR_BGR2GRAY)
+        imgrgb = cv2.GaussianBlur(gray, (3, 3), 0)
+
+        out[i,:,:] = cv2.Canny(imgrgb, lower, upper)
+      
+      return out
+
+    def L1_dist(i1, i2):
+        # return math.sqrt(np.mean((i1-i2)**2))
+        return np.mean(np.abs(i1-i2))
+
 
     def tensor2gray(self, a):
         results = a.detach().clone(); gray = torch.zeros((4,1,256,256)).cuda()
@@ -160,6 +182,7 @@ class AttentionGANModel(BaseModel):
         self.idt_A_ip = torch.cat((self.gray_A.detach().clone(),self.L_A.detach().clone(), self.L_A.detach().clone(), self.C_A.detach().clone()), 1)    #real LC A to LC A
         self.idt_B_ip = torch.cat((self.gray_B.detach().clone(),self.L_B.detach().clone(), self.L_B.detach().clone(), self.C_B.detach().clone()), 1)    #real LC A to LC A
 
+        self.real_B_edges = self.calculateEdges(self.real_B)
 
         # self.real_B_full = torch.cat((self.real_B, self.L_B, self.L_B, self.C_Baug), 1)
 
@@ -179,6 +202,7 @@ class AttentionGANModel(BaseModel):
         # self.fake_B_gray_3 = self.tensor2gray(self.fake_B.detach().clone())
         self.fake_B_gray = self.tensor2gray(self.fake_B.detach().clone())
 
+        self.fake_B_edges = self.calculateEdges(self.fake_B)
 
         #fake_B is only the RGB reconstructed image
         self.fake_B_full = torch.cat((self.fake_B_gray.detach().clone(), self.L_B.detach().clone(), self.L_A.detach().clone(), self.C_A.detach().clone()), 1)
@@ -270,14 +294,16 @@ class AttentionGANModel(BaseModel):
 
         self.loss_cycle_B = self.criterionCycle(self.rec_B, self.real_B) * lambda_B * 2
 
-        self.loss_features_gray = self.criterionCycle(self.fake_B_gray, self.gray_B) * lambda_B * 2
+        # self.loss_features_gray = self.criterionCycle(self.fake_B_gray, self.gray_B) * lambda_B * 2
 
+        self.loss_features_edges = self.L1_dist(self.real_B_edges, self.fake_B_edges) * lambda_A * 2
 
         # Backward cycle loss || G_A(G_B(B)) - B||
         # self.loss_cycle_B = self.criterionCycle(self.rec_B, self.real_B) * lambda_B
         # combined loss and calculate gradients
         # self.loss_G = self.loss_G_A + self.loss_G_B + self.loss_cycle_A + self.loss_cycle_B + self.loss_idt_A + self.loss_idt_B
-        self.loss_G = self.loss_G_A + self.loss_G_B + self.loss_cycle_A + self.loss_cycle_B + self.loss_features_gray + self.loss_idt_A + self.loss_idt_B
+        # self.loss_G = self.loss_G_A + self.loss_G_B + self.loss_cycle_A + self.loss_cycle_B + self.loss_features_gray + self.loss_idt_A + self.loss_idt_B
+        self.loss_G = self.loss_G_A + self.loss_G_B + self.loss_cycle_A + self.loss_cycle_B + self.loss_features_edges + self.loss_idt_A + self.loss_idt_B
 
         self.loss_G.backward()
 
